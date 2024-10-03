@@ -1,0 +1,137 @@
+---
+title: "Exploratory Analysis"
+author: "Kaleb J. Frierson"
+date: "2024-10-03"
+output: 
+  github_document:
+    toc: TRUE
+---
+
+# Notes
+
+group_by() + summarize()
+
+group_by says here is a category that I want to define and then adds a layer ontop of the dataframe that can act transparently unless you call upon it. It is based on existing variables, changes the behavior of some key functions, and is not exactly invisible but is easy to miss. 
+
+summarize() allows you to compute one-number summaries. It is also based on existing variables and is most useful in conjunction with group_by(). 
+
+Exploratory data analysis requires some caution: you should have an analytic plan before doing exploratory analysis so that you don't bias your findings. Most statistical tests assume you're only concnerned about the current hypothesis or that you've done appropriate adjustments for multiple tests/analyses. 
+
+
+# Coding
+
+## Library Calling
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+```
+
+## Data Import
+
+```{r, message=FALSE, warning=FALSE}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USW00022534", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2021-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = case_match(
+      id, 
+      "USW00094728" ~ "CentralPark_NY", 
+      "USW00022534" ~ "Molokai_HI",
+      "USS0023B17S" ~ "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10,
+    month = lubridate::floor_date(date, unit = "month")) |>
+  select(name, id, everything())
+
+```
+
+## Plotting
+
+Lets make some plots: 
+
+```{r}
+weather_df |> 
+  ggplot(aes(x=prcp)) +
+  geom_histogram()
+
+```
+
+```{r}
+weather_df |> 
+  filter(prcp>1000) 
+```
+
+```{r}
+weather_df |> 
+  filter(tmax > 20, tmax < 30) |> 
+  ggplot(aes(x= tmin, y= tmax, color = name, shape = name)) + 
+  geom_point()
+```
+
+Why are central park and molokai each at one whole number while waterhole is all over the place when it comes to decimals? There might be a reporting difference between parks. If we dig into it, central park and molokai are possible reporting in farenheit, converting to celcius, then rounding to some set threshold. Waterhole is probs reporting straight in celcius. 
+
+## group_by()
+
+```{r}
+weather_df |> 
+  group_by(name)
+
+```
+
+Counting stuff: 
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  summarize(n_obs = n())
+```
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  summarize(n_obs = n(), n_dist = n_distinct(month))
+```
+
+There is a special one-off function that does counting by group that you define, in the below case we use name.  
+
+```{r}
+weather_df |> 
+  count(name)
+```
+
+## 2x2 tables
+
+```{r}
+weather_df |> 
+  drop_na(tmax) |> 
+  filter(name != "Molokai_HI") |> 
+  mutate(
+    cold = case_when(
+      tmax < 5 ~ "cold", 
+      tmax >=5 ~ "not_cold"
+    )
+  ) |> 
+  group_by(name, cold) |> 
+  summarize(count = n())
+```
+```{r}
+weather_df |> 
+  drop_na(tmax) |> 
+  filter(name != "Molokai_HI") |> 
+  mutate(
+    cold = case_when(
+      tmax < 5 ~ "cold", 
+      tmax >=5 ~ "not_cold"
+    )
+  ) |> 
+  janitor::tabyl(name, cold)
+```
+
+## general numeric summaries
+
+
+
