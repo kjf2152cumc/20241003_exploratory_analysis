@@ -11,6 +11,7 @@ Kaleb J. Frierson
   - [group_by()](#group_by)
   - [2x2 tables](#2x2-tables)
   - [general numeric summaries](#general-numeric-summaries)
+  - [grouped mutates](#grouped-mutates)
 
 # Notes
 
@@ -216,3 +217,191 @@ weather_df |>
     ##    Waterhole_WA  319      395
 
 ## general numeric summaries
+
+Useful summaries:
+
+``` r
+weather_df |> 
+  group_by(name) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    median_tmin = median(tmin, na.rm = TRUE), 
+    sd_prcp = sd(prcp, na.rm = TRUE) 
+  )
+```
+
+    ## # A tibble: 3 × 4
+    ##   name           mean_tmax median_tmin sd_prcp
+    ##   <chr>              <dbl>       <dbl>   <dbl>
+    ## 1 CentralPark_NY     17.7         10     113. 
+    ## 2 Molokai_HI         28.3         20.6    63.2
+    ## 3 Waterhole_WA        7.38        -0.6   111.
+
+could also do it by month:
+
+``` r
+weather_df |> 
+  group_by(month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    median_tmin = median(tmin, na.rm = TRUE), 
+    sd_prcp = sd(prcp, na.rm = TRUE) 
+  )
+```
+
+    ## # A tibble: 24 × 4
+    ##    month      mean_tmax median_tmin sd_prcp
+    ##    <date>         <dbl>       <dbl>   <dbl>
+    ##  1 2021-01-01     10.9         0.6    113. 
+    ##  2 2021-02-01      9.82       -1.65    83.4
+    ##  3 2021-03-01     13.7         5      107. 
+    ##  4 2021-04-01     16.8         8.05    37.0
+    ##  5 2021-05-01     19.6        11.1     48.1
+    ##  6 2021-06-01     24.3        17.8     38.6
+    ##  7 2021-07-01     25.2        21.1     96.6
+    ##  8 2021-08-01     25.2        21.1    141. 
+    ##  9 2021-09-01     22.4        17.5    200. 
+    ## 10 2021-10-01     18.2        13.9    112. 
+    ## # ℹ 14 more rows
+
+or with name and month, then you can plot on the new dataframe too.
+
+``` r
+weather_df |> 
+  group_by(name, month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    median_tmin = median(tmin, na.rm = TRUE), 
+    sd_prcp = sd(prcp, na.rm = TRUE) 
+  ) |> 
+  ggplot(aes(x= month, y= mean_tmax, color = name)) + 
+  geom_point()+
+  geom_line()
+```
+
+    ## `summarise()` has grouped output by 'name'. You can override using the
+    ## `.groups` argument.
+
+![](20241003_exploratory_analysis_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+The above shows seasonal variation in each of the three weather stations
+but its more summarized with the criteria that we set.
+
+Format for readers:
+
+``` r
+weather_df |> 
+  group_by(name, month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE)
+  ) |> 
+  pivot_wider(
+  names_from = name, 
+  values_from = mean_tmax
+  ) |> 
+  knitr::kable(digits=3,
+               col.names = c("Month", "Central Park", "Molokai", "Waterhole")
+  )
+```
+
+    ## `summarise()` has grouped output by 'name'. You can override using the
+    ## `.groups` argument.
+
+| Month      | Central Park | Molokai | Waterhole |
+|:-----------|-------------:|--------:|----------:|
+| 2021-01-01 |        4.271 |  27.616 |     0.800 |
+| 2021-02-01 |        3.868 |  26.368 |    -0.786 |
+| 2021-03-01 |       12.294 |  25.861 |     2.623 |
+| 2021-04-01 |       17.607 |  26.567 |     6.097 |
+| 2021-05-01 |       22.084 |  28.577 |     8.203 |
+| 2021-06-01 |       28.057 |  29.587 |    15.253 |
+| 2021-07-01 |       28.352 |  29.994 |    17.335 |
+| 2021-08-01 |       28.810 |  29.523 |    17.152 |
+| 2021-09-01 |       24.787 |  29.673 |    12.647 |
+| 2021-10-01 |       19.926 |  29.129 |     5.481 |
+| 2021-11-01 |       11.537 |  28.847 |     3.533 |
+| 2021-12-01 |        9.587 |  26.190 |    -2.097 |
+| 2022-01-01 |        2.855 |  26.606 |     3.606 |
+| 2022-02-01 |        7.650 |  26.829 |     2.989 |
+| 2022-03-01 |       11.990 |  27.726 |     3.416 |
+| 2022-04-01 |       15.810 |  27.723 |     2.463 |
+| 2022-05-01 |       22.255 |  28.283 |     5.810 |
+| 2022-06-01 |       26.090 |  29.157 |    11.127 |
+| 2022-07-01 |       30.723 |  29.529 |    15.861 |
+| 2022-08-01 |       30.500 |  30.697 |    18.830 |
+| 2022-09-01 |       24.923 |  30.413 |    15.207 |
+| 2022-10-01 |       17.426 |  29.223 |    11.884 |
+| 2022-11-01 |       14.017 |  27.960 |     2.140 |
+| 2022-12-01 |        6.761 |  27.348 |    -0.460 |
+
+Once you’ve added the grouping layer on top of your df, there are other
+things you can do as well!
+
+## grouped mutates
+
+``` r
+weather_df |> 
+  group_by(name) |> 
+  mutate(mean_tmax = mean(tmax, na.rm = TRUE))
+```
+
+    ## # A tibble: 2,190 × 8
+    ## # Groups:   name [3]
+    ##    name           id          date        prcp  tmax  tmin month      mean_tmax
+    ##    <chr>          <chr>       <date>     <dbl> <dbl> <dbl> <date>         <dbl>
+    ##  1 CentralPark_NY USW00094728 2021-01-01   157   4.4   0.6 2021-01-01      17.7
+    ##  2 CentralPark_NY USW00094728 2021-01-02    13  10.6   2.2 2021-01-01      17.7
+    ##  3 CentralPark_NY USW00094728 2021-01-03    56   3.3   1.1 2021-01-01      17.7
+    ##  4 CentralPark_NY USW00094728 2021-01-04     5   6.1   1.7 2021-01-01      17.7
+    ##  5 CentralPark_NY USW00094728 2021-01-05     0   5.6   2.2 2021-01-01      17.7
+    ##  6 CentralPark_NY USW00094728 2021-01-06     0   5     1.1 2021-01-01      17.7
+    ##  7 CentralPark_NY USW00094728 2021-01-07     0   5    -1   2021-01-01      17.7
+    ##  8 CentralPark_NY USW00094728 2021-01-08     0   2.8  -2.7 2021-01-01      17.7
+    ##  9 CentralPark_NY USW00094728 2021-01-09     0   2.8  -4.3 2021-01-01      17.7
+    ## 10 CentralPark_NY USW00094728 2021-01-10     0   5    -1.6 2021-01-01      17.7
+    ## # ℹ 2,180 more rows
+
+This demonstrates that the grouping function when working in the
+tidyverse stays with your dataframe. If later on you get weird results
+it might be because you forgot that you grouped. So making a grouping
+permenant is a bad idea. Better in exploratory analysis than when making
+an analytic dataset.
+
+``` r
+weather_df |> 
+  group_by(name) |> 
+  mutate(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    centered_tmax = tmax - mean_tmax) |> 
+  ggplot(aes(x = date, y = centered_tmax, color = name)) + 
+  geom_point() 
+```
+
+    ## Warning: Removed 17 rows containing missing values or values outside the scale range
+    ## (`geom_point()`).
+
+![](20241003_exploratory_analysis_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+``` r
+weather_df |> 
+  mutate(
+    temp_rank = min_rank(tmax)
+  ) |> 
+  filter(temp_rank <10)
+```
+
+    ## # A tibble: 10 × 8
+    ##    name           id          date        prcp  tmax  tmin month      temp_rank
+    ##    <chr>          <chr>       <date>     <dbl> <dbl> <dbl> <date>         <int>
+    ##  1 CentralPark_NY USW00094728 2022-01-15     0  -6   -12.1 2022-01-01         7
+    ##  2 CentralPark_NY USW00094728 2022-12-24     0  -9.3 -13.8 2022-12-01         4
+    ##  3 Waterhole_WA   USS0023B17S 2021-02-11    51  -5.6 -10.9 2021-02-01         9
+    ##  4 Waterhole_WA   USS0023B17S 2021-12-26   102 -11.4 -18.3 2021-12-01         1
+    ##  5 Waterhole_WA   USS0023B17S 2021-12-27    25  -9.8 -19.6 2021-12-01         2
+    ##  6 Waterhole_WA   USS0023B17S 2021-12-28     0  -6   -11.4 2021-12-01         7
+    ##  7 Waterhole_WA   USS0023B17S 2021-12-29   102  -7.9 -15.4 2021-12-01         6
+    ##  8 Waterhole_WA   USS0023B17S 2022-02-22   102  -9.3 -16.6 2022-02-01         4
+    ##  9 Waterhole_WA   USS0023B17S 2022-12-18     0  -5.6 -11.3 2022-12-01         9
+    ## 10 Waterhole_WA   USS0023B17S 2022-12-21     0  -9.6 -18.4 2022-12-01         3
+
+You can also change the way you rank things, use “desc” in the new
+variable statement with min_rank: temp_rank = min_ranl(desc(tmax))

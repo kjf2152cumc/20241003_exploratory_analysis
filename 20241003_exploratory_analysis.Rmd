@@ -133,5 +133,90 @@ weather_df |>
 
 ## general numeric summaries
 
+Useful summaries: 
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    median_tmin = median(tmin, na.rm = TRUE), 
+    sd_prcp = sd(prcp, na.rm = TRUE) 
+  )
+```
+
+could also do it by month: 
+
+```{r}
+weather_df |> 
+  group_by(month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    median_tmin = median(tmin, na.rm = TRUE), 
+    sd_prcp = sd(prcp, na.rm = TRUE) 
+  )
+```
+or with name and month, then you can plot on the new dataframe too. 
+
+```{r}
+weather_df |> 
+  group_by(name, month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    median_tmin = median(tmin, na.rm = TRUE), 
+    sd_prcp = sd(prcp, na.rm = TRUE) 
+  ) |> 
+  ggplot(aes(x= month, y= mean_tmax, color = name)) + 
+  geom_point()+
+  geom_line()
+```
+The above shows seasonal variation in each of the three weather stations but its more summarized with the criteria that we set. 
+
+Format for readers: 
+
+```{r}
+weather_df |> 
+  group_by(name, month) |> 
+  summarize(
+    mean_tmax = mean(tmax, na.rm = TRUE)
+  ) |> 
+  pivot_wider(
+  names_from = name, 
+  values_from = mean_tmax
+  ) |> 
+  knitr::kable(digits=3,
+               col.names = c("Month", "Central Park", "Molokai", "Waterhole")
+  )
+```
+
+Once you've added the grouping layer on top of your df, there are other things you can do as well!
+
+## grouped mutates
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  mutate(mean_tmax = mean(tmax, na.rm = TRUE))
+```
+This demonstrates that the grouping function when working in the tidyverse stays with your dataframe. If later on you get weird results it might be because you forgot that you grouped. So making a grouping permenant is a bad idea. Better in exploratory analysis than when making an analytic dataset. 
+
+```{r}
+weather_df |> 
+  group_by(name) |> 
+  mutate(
+    mean_tmax = mean(tmax, na.rm = TRUE), 
+    centered_tmax = tmax - mean_tmax) |> 
+  ggplot(aes(x = date, y = centered_tmax, color = name)) + 
+  geom_point() 
+```
+```{r}
+weather_df |> 
+  mutate(
+    temp_rank = min_rank(tmax)
+  ) |> 
+  filter(temp_rank <10)
+```
+You can also change the way you rank things, use "desc" in the new variable statement with min_rank: temp_rank = min_ranl(desc(tmax))
+
 
 
