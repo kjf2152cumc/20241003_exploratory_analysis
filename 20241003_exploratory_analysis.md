@@ -12,6 +12,7 @@ Kaleb J. Frierson
   - [2x2 tables](#2x2-tables)
   - [general numeric summaries](#general-numeric-summaries)
   - [grouped mutates](#grouped-mutates)
+- [FAS dataset](#fas-dataset)
 
 # Notes
 
@@ -405,3 +406,149 @@ weather_df |>
 
 You can also change the way you rank things, use “desc” in the new
 variable statement with min_rank: temp_rank = min_ranl(desc(tmax))
+
+``` r
+pulse_data = 
+  haven::read_sas("data_import_examples/public_pulse_data.sas7bdat") |>
+  janitor::clean_names() |>
+  pivot_longer(
+    bdi_score_bl:bdi_score_12m,
+    names_to = "visit", 
+    names_prefix = "bdi_score_",
+    values_to = "bdi") |>
+  select(id, visit, everything()) |>
+  mutate(
+    visit = replace(visit, visit == "bl", "00m"),
+    visit = factor(visit, levels = str_c(c("00", "01", "06", "12"), "m"))) |>
+  arrange(id, visit)
+
+pulse_data |> 
+  group_by(visit) |> 
+  summarize(
+    mean_bdi = mean(bdi, na.rm = TRUE),
+    median_bdi = median(bdi, na.rm = TRUE)) |> 
+  knitr::kable(digits = 3)
+```
+
+| visit | mean_bdi | median_bdi |
+|:------|---------:|-----------:|
+| 00m   |    7.995 |          6 |
+| 01m   |    6.046 |          4 |
+| 06m   |    5.672 |          4 |
+| 12m   |    6.097 |          4 |
+
+``` r
+pup_data = 
+  read_csv("data_import_examples/FAS_pups.csv") |>
+  janitor::clean_names() |>
+  mutate(sex = recode(sex, `1` = "male", `2` = "female")) 
+```
+
+    ## Rows: 313 Columns: 6
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (2): Litter Number, PD ears
+    ## dbl (4): Sex, PD eyes, PD pivot, PD walk
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+litter_data = 
+    read_csv("data_import_examples/FAS_litters.csv") |>
+  janitor::clean_names() |>
+  separate(group, into = c("dose", "day_of_tx"), sep = 3)
+```
+
+    ## Rows: 49 Columns: 8
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (4): Group, Litter Number, GD0 weight, GD18 weight
+    ## dbl (4): GD of Birth, Pups born alive, Pups dead @ birth, Pups survive
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+fas_data = left_join(pup_data, litter_data, by = "litter_number") 
+
+fas_data |> 
+  group_by(dose, day_of_tx) |> 
+  drop_na(dose) |> 
+  summarize(mean_pivot = mean(pd_pivot, na.rm = TRUE)) |> 
+  pivot_wider(
+    names_from = dose, 
+    values_from = mean_pivot) |> 
+  knitr::kable(digits = 3)
+```
+
+    ## `summarise()` has grouped output by 'dose'. You can override using the
+    ## `.groups` argument.
+
+| day_of_tx |   Con |   Low |   Mod |
+|:----------|------:|------:|------:|
+| 7         | 7.000 | 7.939 | 6.984 |
+| 8         | 6.236 | 7.721 | 7.042 |
+
+# FAS dataset
+
+``` r
+litters_df = 
+  read_csv("data_import_examples/FAS_litters.csv", na = c("NA", "", ".")) |> 
+  janitor::clean_names() |> 
+  separate(
+    group, into = c("dose", "tx_day"), sep=3
+  )
+```
+
+    ## Rows: 49 Columns: 8
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (2): Group, Litter Number
+    ## dbl (6): GD0 weight, GD18 weight, GD of Birth, Pups born alive, Pups dead @ ...
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+pups_df = 
+  read_csv("data_import_examples/FAS_pups.csv", na = c("NA", "", ".")) |> 
+  janitor::clean_names() 
+```
+
+    ## Rows: 313 Columns: 6
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr (1): Litter Number
+    ## dbl (5): Sex, PD ears, PD eyes, PD pivot, PD walk
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+``` r
+fas_df = 
+  left_join(pups_df, litters_df, by = "litter_number")
+```
+
+Compute a table we care about:
+
+``` r
+fas_df |> 
+  drop_na(dose) |> 
+  group_by(dose, tx_day) |> 
+  summarize(mean_pivot = mean(pd_pivot, na.rm = TRUE)) |> 
+  pivot_wider(
+    names_from = tx_day, 
+    values_from = mean_pivot
+  ) |> 
+  knitr::kable(digits=2)
+```
+
+    ## `summarise()` has grouped output by 'dose'. You can override using the
+    ## `.groups` argument.
+
+| dose |    7 |    8 |
+|:-----|-----:|-----:|
+| Con  | 7.00 | 6.24 |
+| Low  | 7.94 | 7.72 |
+| Mod  | 6.98 | 7.04 |
